@@ -174,4 +174,4 @@ cython_debug/
 .pypirc
 
 # Ignore the 'data' folder inside 'Weekly notebooks'
-Weekly notebooks/data/
+**/Weekly notebooks/
