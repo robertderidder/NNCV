@@ -36,6 +36,9 @@ deeplabv3 = models.segmentation.deeplabv3_resnet101(pretrained=True)
 deeplabv3.classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
 nn.init.xavier_normal_(deeplabv3.classifier[4].weight)
 
+for param in model.backbone.parameters():
+    param.requires_grad = False
+
 
 # Mapping class IDs to train IDs
 id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
