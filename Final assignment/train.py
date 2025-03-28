@@ -36,7 +36,7 @@ deeplabv3 = models.segmentation.deeplabv3_resnet101(pretrained=True)
 deeplabv3.classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
 nn.init.xavier_normal_(deeplabv3.classifier[4].weight)
 
-for param in model.backbone.parameters():
+for param in deeplabv3.backbone.parameters():
     param.requires_grad = False
 
 
@@ -161,7 +161,7 @@ def main(args):
             labels = labels.long().squeeze(1)  # Remove channel dimension
 
             optimizer.zero_grad()
-            outputs = model(images)
+            outputs = model(images)['out']
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
