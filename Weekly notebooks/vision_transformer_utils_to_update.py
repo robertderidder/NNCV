@@ -123,7 +123,19 @@ class Attention(nn.Module):
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
 
         #TODO: complete the forward pass
-        # q, k, v = 
+        q, k, v = qkv[0], qkv[1], qkv[2]  # (B, num_heads, N, head_dim)
+
+        # Compute attention scores
+        attn = (q @ k.transpose(-2, -1)) * self.scale  # (B, num_heads, N, N)
+        attn = F.softmax(attn, dim=-1)
+        attn = self.attn_drop(attn)
+
+        # Compute weighted sum of values
+        out = (attn @ v).transpose(1, 2).reshape(B, N, C)  # (B, N, C)
+
+        # Final projection
+        out = self.proj(out)
+        out = self.proj_drop(out)
         
         return x, attn
 
@@ -205,8 +217,10 @@ class PatchEmbed(nn.Module):
         B, C, H, W = x.shape
         
         # TODO: Complete the forward pass
-        # x =
-
+        x = self.proj(x)
+        x = x.flatten(2)  # Flatten spatial dimensions: (B, embed_dim, num_patches)
+        x = x.transpose(1, 2)  # Rearrange to (B, num_patches, embed_dim)
+        
         return x
 
 
@@ -331,92 +345,3 @@ def vit_base(patch_size=16, **kwargs):
         patch_size=patch_size, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4,
         qkv_bias=True, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     return model
-
-class Attention(nn.Module):
-
-    """
-    Implements a multi-head self-attention mechanism with optional scaling.
-
-    This module computes self-attention, using a scaled dot-product mechanism, over input features. It supports optional biases in the query, key, and value projections, scaling of the attention scores, and dropout in both the attention scores and the output projection.
-
-    Parameters:
-    - dim (int): Dimensionality of the input features and the output features.
-    - num_heads (int, optional): Number of attention heads. Defaults to 8.
-    - qkv_bias (bool, optional): If True, adds a learnable bias to query, key, and value projections. Defaults to False.
-    - qk_scale (float, optional): Scale factor for query-key dot products. If None, defaults to dim ** -0.5. When specified, overrides the default scaling.
-    - attn_drop (float, optional): Dropout rate for attention weights. Defaults to 0.
-    - proj_drop (float, optional): Dropout rate for the output of the final projection layer. Defaults to 0.
-
-    The forward pass accepts an input tensor `x` and returns the transformed tensor and the attention weights. The input tensor is expected to have the shape (batch_size, num_features, dim), where `num_features` is the number of features (or tokens) and `dim` is the feature dimensionality.
-
-    The output consists of the transformed input tensor with the same shape as the input and the attention weights tensor of shape (batch_size, num_heads, num_features, num_features), representing the attention scores applied to the input features.
-    """
-    
-
-    def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.):
-        super().__init__()
-        self.num_heads = num_heads
-        head_dim = dim // num_heads
-        self.scale = qk_scale or head_dim ** -0.5
-
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
-        self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim)
-        self.proj_drop = nn.Dropout(proj_drop)
-
-    def forward(self, x):
-        B, N, C = x.shape
-        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
-
-        #TODO: complete the forward pass
-        q, k, v = qkv[0], qkv[1], qkv[2]  # (B, num_heads, N, head_dim)
-
-        # Compute attention scores
-        attn = (q @ k.transpose(-2, -1)) * self.scale  # (B, num_heads, N, N)
-        attn = F.softmax(attn, dim=-1)
-        attn = self.attn_drop(attn)
-
-        # Compute weighted sum of values
-        out = (attn @ v).transpose(1, 2).reshape(B, N, C)  # (B, N, C)
-
-        # Final projection
-        out = self.proj(out)
-        out = self.proj_drop(out)
-        
-        return x, attn
-
-class PatchEmbed(nn.Module):
-    """
-    Converts an image into a sequence of patches and embeds them.
-
-    This module uses a convolutional layer to transform the input images into a flat sequence of embeddings, 
-    effectively converting each patch of the image into an embedding vector.
-
-    Parameters:
-    - img_size (int, optional): Size of the input image (height and width). Defaults to 224.
-    - patch_size (int, optional): Size of each patch (height and width). Defaults to 16.
-    - in_chans (int, optional): Number of input channels (e.g., 3 for RGB images). Defaults to 3.
-    - embed_dim (int, optional): Dimension of the patch embeddings. Defaults to 768.
-
-    The module calculates the number of patches by dividing the image size by the patch size, both vertically and horizontally. 
-    It then applies a 2D convolutional layer to project each patch to the embedding space defined by `embed_dim`.
-    """
-    def __init__(self, img_size=224, patch_size=16, in_chans=3, embed_dim=768):
-        super().__init__()
-        num_patches = (img_size // patch_size) * (img_size // patch_size)
-        self.img_size = img_size
-        self.patch_size = patch_size
-        self.num_patches = num_patches
-
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
-
-    def forward(self, x):
-        B, C, H, W = x.shape
-        
-        # TODO: Complete the forward pass
-        x = self.proj(x)
-        x = x.flatten(2)  # Flatten spatial dimensions: (B, embed_dim, num_patches)
-        x = x.transpose(1, 2)  # Rearrange to (B, num_patches, embed_dim)
-
-
-        return x
