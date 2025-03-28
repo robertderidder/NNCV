@@ -68,10 +68,9 @@ def get_args_parser():
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
     parser.add_argument("--num-workers", type=int, default=10, help="Number of workers for data loaders")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
-    parser.add_argument("--experiment-id", type=str, default="unet-training", help="Experiment ID for Weights & Biases")
+    parser.add_argument("--experiment-id", type=str, default="deeplab", help="Experiment ID for Weights & Biases")
 
     return parser
-
 
 def main(args):
     # Initialize wandb for logging
@@ -135,10 +134,7 @@ def main(args):
     )
 
     # Define the model
-    model = deeplabv3(
-        in_channels=3,  # RGB images
-        n_classes=19,  # 19 classes in the Cityscapes dataset
-    ).to(device)
+    model = deeplabv3.to(device)
 
     # Define the loss function
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
