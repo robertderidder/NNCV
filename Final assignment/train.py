@@ -30,7 +30,11 @@ from torchvision.transforms.v2 import (
     ToDtype,
 )
 
-from unet import UNet
+import torchvision.models as models
+
+deeplabv3 = models.segmentation.deeplabv3_resnet101(pretrained=True)
+deeplabv3.classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
+nn.init.xavier_normal_(deeplabv3.classifier[4].weight)
 
 
 # Mapping class IDs to train IDs
@@ -95,7 +99,7 @@ def main(args):
         ToImage(),
         Resize((256, 256)),
         ToDtype(torch.float32, scale=True),
-        Normalize((0.5,), (0.5,)),
+        Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225),
     ])
 
     # Load the dataset and make a split for training and validation
@@ -131,7 +135,7 @@ def main(args):
     )
 
     # Define the model
-    model = UNet(
+    model = deeplabv3(
         in_channels=3,  # RGB images
         n_classes=19,  # 19 classes in the Cityscapes dataset
     ).to(device)
