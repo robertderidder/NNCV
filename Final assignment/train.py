@@ -183,7 +183,7 @@ def main(args):
 
                 labels = labels.long().squeeze(1)  # Remove channel dimension
 
-                outputs = model(images)
+                outputs = model(images)['out']
                 loss = criterion(outputs, labels)
                 losses.append(loss.item())
             
