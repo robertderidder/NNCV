@@ -32,12 +32,19 @@ from torchvision.transforms.v2 import (
 
 import torchvision.models as models
 
+#Import deeplabv3 and change last layers to 19 classes instead of 21
 deeplabv3 = models.segmentation.deeplabv3_resnet101(pretrained=True)
 deeplabv3.classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
-nn.init.xavier_normal_(deeplabv3.classifier[4].weight)
+deeplabv3.aux_classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
+nn.init.xavier_normal_(deeplabv3.classifier[4].weight) #Initialize weights
+nn.init.xavier_normal(deeplabv3.aux_classifier[4].weight)
 
 for param in deeplabv3.backbone.parameters():
-    param.requires_grad = False
+    param.requires_grad = False  # Freeze the early layers
+
+for param in deeplabv3.backbone.layer4.parameters():  # Unfreeze only the last ResNet block
+    param.requires_grad = True
+
 
 
 # Mapping class IDs to train IDs
@@ -143,7 +150,11 @@ def main(args):
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    optimizer = AdamW(model.parameters(), lr=args.lr)
+    %optimizer = AdamW(model.parameters(), lr=args.lr)
+    optimizer = AdamW([
+    {'params': deeplabv3.backbone.parameters(), 'lr': 1e-5},  # Lower LR for backbone
+    {'params': deeplabv3.classifier.parameters(), 'lr': 1e-4},  # Higher LR for classifier
+])
 
     # Training loop
     best_valid_loss = float('inf')
