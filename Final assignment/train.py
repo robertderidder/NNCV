@@ -33,18 +33,17 @@ from torchvision.transforms.v2 import (
 import torchvision.models as models
 
 #Import deeplabv3 and change last layers to 19 classes instead of 21
-deeplabv3 = models.segmentation.deeplabv3_resnet101(pretrained=True)
+deeplabv3 = models.segmentation.deeplabv3_resnet50() #Use resnet50 because it is smaller than resnet101
 deeplabv3.classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
 deeplabv3.aux_classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
 nn.init.xavier_normal_(deeplabv3.classifier[4].weight) #Initialize weights
 nn.init.xavier_normal(deeplabv3.aux_classifier[4].weight)
 
 for param in deeplabv3.backbone.parameters():
-    param.requires_grad = False  # Freeze the early layers
+    param.requires_grad = unFalse  # Freeze the early layers
 
-for param in deeplabv3.backbone.layer4.parameters():  # Unfreeze only the last ResNet block
+for param in deeplabv3.backbone.layer4.parameters():  # Unfreeze only the last ResNet layer
     param.requires_grad = True
-
 
 
 # Mapping class IDs to train IDs
@@ -71,7 +70,7 @@ def convert_train_id_to_color(prediction: torch.Tensor) -> torch.Tensor:
 
 def get_args_parser():
 
-    parser = ArgumentParser("Training script for a PyTorch U-Net model")
+    parser = ArgumentParser("Training script for a PyTorch Deeplab")
     parser.add_argument("--data-dir", type=str, default="./data/cityscapes", help="Path to the training data")
     parser.add_argument("--batch-size", type=int, default=64, help="Training batch size")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
@@ -85,7 +84,7 @@ def get_args_parser():
 def main(args):
     # Initialize wandb for logging
     wandb.init(
-        project="5lsm0-cityscapes-segmentation",  # Project name in wandb
+        project="5lsm0-robustness_challenge",  # Project name in wandb
         name=args.experiment_id,  # Experiment name in wandb
         config=vars(args),  # Save hyperparameters
     )
@@ -108,7 +107,7 @@ def main(args):
         ToImage(),
         Resize((256, 256)),
         ToDtype(torch.float32, scale=True),
-        Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), #Parameters required for deeplabV3
     ])
 
     # Load the dataset and make a split for training and validation
@@ -150,7 +149,7 @@ def main(args):
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    %optimizer = AdamW(model.parameters(), lr=args.lr)
+    #%optimizer = AdamW(model.parameters(), lr=args.lr)
     optimizer = AdamW([
     {'params': deeplabv3.backbone.parameters(), 'lr': 1e-5},  # Lower LR for backbone
     {'params': deeplabv3.classifier.parameters(), 'lr': 1e-4},  # Higher LR for classifier
