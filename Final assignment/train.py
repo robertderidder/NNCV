@@ -19,6 +19,7 @@ import wandb
 import torch
 import torch.nn as nn
 from torch.optim import AdamW
+from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from torchvision.datasets import Cityscapes, wrap_dataset_for_transforms_v2
 from torchvision.utils import make_grid
@@ -147,13 +148,16 @@ def main(args):
 
     # Define the optimizer
     optimizer = AdamW(model.classifier.parameters(), lr=args.lr)
-    scheduler = lr_scheduler.MultiplicativeLR(optimizer,milestones=[2,4],args.decay)
+    scheduler = lr_scheduler.MultiplicativeLR(optimizer,args.decay)
 
     # Training loop
     best_valid_loss = float('inf')
     current_best_model_path = None
     for epoch in range(args.epochs):
-        print(f"Epoch {epoch+1:04}/{args.epochs:04}")
+    
+        last_lr = scheduler.get_last_lr()[0]  # Returns a list, take the first value
+
+        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr = {last_lr:.6f}")
 
         # Training
         model.train()
@@ -225,10 +229,7 @@ def main(args):
                     f"best_model-epoch={epoch:04}-val_loss={valid_loss:04}.pth"
                 )
                 torch.save(model.state_dict(), current_best_model_path)
-        
-        if epoch % 2 == 0:
-            scheduler.step()
-
+                
     print("Training complete!")
 
     # Save the model
