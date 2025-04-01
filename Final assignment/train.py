@@ -35,15 +35,11 @@ import torchvision.models as models
 #Import deeplabv3 and change last layers to 19 classes instead of 21
 deeplabv3 = models.segmentation.deeplabv3_resnet50() #Use resnet50 because it is smaller than resnet101
 deeplabv3.classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
-deeplabv3.aux_classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
 nn.init.xavier_normal_(deeplabv3.classifier[4].weight) #Initialize weights
-nn.init.xavier_normal(deeplabv3.aux_classifier[4].weight)
+
 
 for param in deeplabv3.backbone.parameters():
-    param.requires_grad = unFalse  # Freeze the early layers
-
-for param in deeplabv3.backbone.layer4.parameters():  # Unfreeze only the last ResNet layer
-    param.requires_grad = True
+    param.requires_grad = False  # Freeze the early layers
 
 
 # Mapping class IDs to train IDs
@@ -75,6 +71,7 @@ def get_args_parser():
     parser.add_argument("--batch-size", type=int, default=64, help="Training batch size")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
+    parser.add_argument("--decay",type=float,default=0.7,help="decay")
     parser.add_argument("--num-workers", type=int, default=10, help="Number of workers for data loaders")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--experiment-id", type=str, default="deeplab", help="Experiment ID for Weights & Biases")
@@ -234,7 +231,7 @@ def main(args):
                 )
                 torch.save(model.state_dict(), current_best_model_path)
         
-        if epoch % 10 == 0
+        if epoch % 2 == 0:
             scheduler.step()
 
     print("Training complete!")
