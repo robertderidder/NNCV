@@ -229,6 +229,8 @@ def main(args):
                     f"best_model-epoch={epoch:04}-val_loss={valid_loss:04}.pth"
                 )
                 torch.save(model.state_dict(), current_best_model_path)
+
+        scheduler.step()
                 
     print("Training complete!")
 
