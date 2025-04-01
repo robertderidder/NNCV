@@ -146,13 +146,8 @@ def main(args):
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    #optimizer = AdamW(model.parameters(), lr=args.lr)
-    optimizer = AdamW([
-    {'params': deeplabv3.backbone.parameters(), 'lr': args.lr/10},  # Lower LR for backbone
-    {'params': deeplabv3.classifier.parameters(), 'lr': args.lr},  # Higher LR for classifier
-    ])
-
-    scheduler = lr_scheduler.Multiplicative(optimizer,lr,args.decay)
+    optimizer = AdamW(model.classifier.parameters(), lr=args.lr)
+    scheduler = lr_scheduler.MultiplicativeLR(optimizer,milestones=[2,4],args.decay)
 
     # Training loop
     best_valid_loss = float('inf')
