@@ -149,11 +149,13 @@ def main(args):
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    #%optimizer = AdamW(model.parameters(), lr=args.lr)
+    #optimizer = AdamW(model.parameters(), lr=args.lr)
     optimizer = AdamW([
-    {'params': deeplabv3.backbone.parameters(), 'lr': 1e-5},  # Lower LR for backbone
-    {'params': deeplabv3.classifier.parameters(), 'lr': 1e-4},  # Higher LR for classifier
-])
+    {'params': deeplabv3.backbone.parameters(), 'lr': args.lr/10},  # Lower LR for backbone
+    {'params': deeplabv3.classifier.parameters(), 'lr': args.lr},  # Higher LR for classifier
+    ])
+
+    scheduler = lr_scheduler.Multiplicative(optimizer,lr,args.decay)
 
     # Training loop
     best_valid_loss = float('inf')
@@ -232,6 +234,9 @@ def main(args):
                 )
                 torch.save(model.state_dict(), current_best_model_path)
         
+        if epoch % 10 == 0
+            scheduler.step()
+
     print("Training complete!")
 
     # Save the model
