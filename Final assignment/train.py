@@ -157,7 +157,7 @@ def main(args):
     
         last_lr = scheduler.get_last_lr()[0]  # Returns a list, take the first value
 
-        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr = {last_lr:.6f}")
+        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr = {last_lr:.3E}")
 
         # Training
         model.train()
@@ -230,7 +230,7 @@ def main(args):
                 )
                 torch.save(model.state_dict(), current_best_model_path)
 
-        if (epoch+1) % 10 ==0:
+        if (epoch+1) % 2 ==0:
             scheduler.step()
                     
     print("Training complete!")
