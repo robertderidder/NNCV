@@ -148,7 +148,7 @@ def main(args):
 
     # Define the optimizer
     optimizer = AdamW(model.classifier.parameters(), lr=args.lr)
-    scheduler = lr_scheduler.MultiplicativeLR(optimizer,args.decay)
+    scheduler = lr_scheduler.MultiplicativeLR(optimizer,lambda epoch: args.decay)
 
     # Training loop
     best_valid_loss = float('inf')
@@ -230,8 +230,9 @@ def main(args):
                 )
                 torch.save(model.state_dict(), current_best_model_path)
 
-        scheduler.step()
-                
+        if (epoch+1) % 10 ==0:
+            scheduler.step()
+                    
     print("Training complete!")
 
     # Save the model
