@@ -30,6 +30,8 @@ from torchvision.transforms.v2 import (
     Resize,
     ToImage,
     ToDtype,
+    RandomHorizontalFlip,
+    RandomVerticalFlip,
 )
 
 deeplabv3 = models.segmentation.deeplabv3_resnet50() #Use resnet50 because it is smaller than resnet101
@@ -99,46 +101,48 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     class DiceLoss:
-    def __init__(self, smooth=1):
-        self.smooth = smooth
-    
-    def __call__(self, pred, target):
-        pred = torch.sigmoid(pred)
-        intersection = (pred * target).sum(dim=(2, 3))
-        union = pred.sum(dim=(2, 3)) + target.sum(dim=(2, 3))
-        dice = (2. * intersection + self.smooth) / (union + self.smooth)
-        return 1 - dice.mean()
+      def __init__(self, smooth=1):
+          self.smooth = smooth
+      
+      def __call__(self, pred, target):
+          pred = torch.sigmoid(pred)
+          intersection = (pred * target).sum(dim=(2, 3))
+          union = pred.sum(dim=(2, 3)) + target.sum(dim=(2, 3))
+          dice = (2. * intersection + self.smooth) / (union + self.smooth)
+          return 1 - dice.mean()
 
-    class PaintingByNumbersTransform:
-    def __init__(self, id_to_color=None):
-        self.id_to_color = id_to_color  # Dictionary mapping class IDs to colors
+   class PaintingByNumbersTransform:
+      def __init__(self, id_to_color=None):
+          self.id_to_color = id_to_color  # Dictionary mapping class IDs to colors
+  
+      def random_recolor(self, label_img):
+          """Assigns random colors to segmentation labels."""
+          h, w = label_img.shape[1:]
+          recolored = torch.zeros((3, h, w), dtype=torch.uint8)  # Create an empty RGB image
+                  
+          unique_labels = label_img.unique()
+          color_map = {label.item(): torch.randint(0, 256, (3,), dtype=torch.uint8) for label in unique_labels}
+          
+          for label, color in color_map.items():
+              mask = label_img == label  # Shape: (h, w)
+              print(mask.shape)
+              recolored[:, mask] = color  # Broadcasting works correctly
+             
+          return recolored
+  
+      def __call__(self, img, target):
+          if torch.rand(1).item() > 0.5:
+              # Load the actual ground truth color image
+              gt_color = self.random_recolor(target)
+  
+              # Blend image and color segmentation map
+              alpha = torch.rand(1).item() * 0.29 + 0.7  # Random alpha between 0.7 and 0.99
+              blended_img = alpha * img + (1 - alpha) * gt_color.float() / 255.0
+              print(blended_img.shape)
+              return blended_img, target
+          
+          return img, target  # If not applying transformation, return original
 
-    def random_recolor(self, label_img):
-        """Assigns random colors to segmentation labels."""
-        h, w = label_img.shape
-        recolored = torch.zeros((3, h, w), dtype=torch.uint8)  # Create an empty RGB image
-        
-        unique_labels = label_img.unique()
-        color_map = {label.item(): torch.randint(0, 256, (3,), dtype=torch.uint8) for label in unique_labels}
-        
-        for label, color in color_map.items():
-            mask = label_img == label
-            recolored[:, mask] = color[:, None]  # Assign color to all pixels with this label
-        
-        return recolored
-
-    def __call__(self, img, target):
-        if torch.rand(1).item() > 0.5:
-            # Load the actual ground truth color image
-            gt_color = self.random_recolor(target)
-
-            # Blend image and color segmentation map
-            alpha = torch.rand(1).item() * 0.29 + 0.7  # Random alpha between 0.7 and 0.99
-            blended_img = alpha * img + (1 - alpha) * gt_color.float() / 255.0
-
-            return blended_img, target
-        
-        return img, target  # If not applying transformation, return original
 
     # Define the transforms to apply to the data
     transform1 = Compose([
@@ -147,6 +151,8 @@ def main(args):
         ToDtype(torch.float32, scale=True),
         Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), #Parameters required for deeplabV3
         PaintingByNumbersTransform(),
+        RandomHorizontalFlip(p=0.25),
+        RandomVerticalFlip(p=0.25),
     ])
 
     # Load the dataset and make a split for training and validation
