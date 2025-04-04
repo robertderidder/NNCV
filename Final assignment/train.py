@@ -18,6 +18,7 @@ from argparse import ArgumentParser
 import wandb
 import torch
 import torch.nn as nn
+import torchvision.models as models
 from torch.optim import AdamW
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
@@ -31,17 +32,16 @@ from torchvision.transforms.v2 import (
     ToDtype,
 )
 
-import torchvision.models as models
-
-#Import deeplabv3 and change last layers to 19 classes instead of 21
 deeplabv3 = models.segmentation.deeplabv3_resnet50() #Use resnet50 because it is smaller than resnet101
 deeplabv3.classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
 nn.init.xavier_normal_(deeplabv3.classifier[4].weight) #Initialize weights
-
+deeplabv3.backbone.layer4[0].conv2.dilation = (2, 2) #change  to stride 16
+deeplabv3.backbone.layer4[0].conv2.padding = (2, 2)
+deeplabv3.backbone.layer4[0].downsample[0].stride = (1, 1)  # Prevents downsampling
+model = deeplabv3
 
 for param in deeplabv3.backbone.parameters():
-    param.requires_grad = False  # Freeze the early layers
-
+    param.requires_grad = True  # Freeze the backbone
 
 # Mapping class IDs to train IDs
 id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
@@ -64,9 +64,7 @@ def convert_train_id_to_color(prediction: torch.Tensor) -> torch.Tensor:
 
     return color_image
 
-
 def get_args_parser():
-
     parser = ArgumentParser("Training script for a PyTorch Deeplab")
     parser.add_argument("--data-dir", type=str, default="./data/cityscapes", help="Path to the training data")
     parser.add_argument("--batch-size", type=int, default=64, help="Training batch size")
@@ -100,12 +98,55 @@ def main(args):
     # Define the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    class DiceLoss:
+    def __init__(self, smooth=1):
+        self.smooth = smooth
+    
+    def __call__(self, pred, target):
+        pred = torch.sigmoid(pred)
+        intersection = (pred * target).sum(dim=(2, 3))
+        union = pred.sum(dim=(2, 3)) + target.sum(dim=(2, 3))
+        dice = (2. * intersection + self.smooth) / (union + self.smooth)
+        return 1 - dice.mean()
+
+    class PaintingByNumbersTransform:
+    def __init__(self, id_to_color=None):
+        self.id_to_color = id_to_color  # Dictionary mapping class IDs to colors
+
+    def random_recolor(self, label_img):
+        """Assigns random colors to segmentation labels."""
+        h, w = label_img.shape
+        recolored = torch.zeros((3, h, w), dtype=torch.uint8)  # Create an empty RGB image
+        
+        unique_labels = label_img.unique()
+        color_map = {label.item(): torch.randint(0, 256, (3,), dtype=torch.uint8) for label in unique_labels}
+        
+        for label, color in color_map.items():
+            mask = label_img == label
+            recolored[:, mask] = color[:, None]  # Assign color to all pixels with this label
+        
+        return recolored
+
+    def __call__(self, img, target):
+        if torch.rand(1).item() > 0.5:
+            # Load the actual ground truth color image
+            gt_color = self.random_recolor(target)
+
+            # Blend image and color segmentation map
+            alpha = torch.rand(1).item() * 0.29 + 0.7  # Random alpha between 0.7 and 0.99
+            blended_img = alpha * img + (1 - alpha) * gt_color.float() / 255.0
+
+            return blended_img, target
+        
+        return img, target  # If not applying transformation, return original
+
     # Define the transforms to apply to the data
-    transform = Compose([
+    transform1 = Compose([
         ToImage(),
         Resize((256, 256)),
         ToDtype(torch.float32, scale=True),
         Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), #Parameters required for deeplabV3
+        PaintingByNumbersTransform(),
     ])
 
     # Load the dataset and make a split for training and validation
@@ -114,14 +155,14 @@ def main(args):
         split="train", 
         mode="fine", 
         target_type="semantic", 
-        transforms=transform
+        transforms=transform1
     )
     valid_dataset = Cityscapes(
         args.data_dir, 
         split="val", 
         mode="fine", 
         target_type="semantic", 
-        transforms=transform
+        transforms=transform1
     )
 
     train_dataset = wrap_dataset_for_transforms_v2(train_dataset)
