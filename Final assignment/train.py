@@ -34,9 +34,13 @@ from torchvision.transforms.v2 import (
     RandomVerticalFlip,
 )
 from model import Model
+model = Model()
 
-for param in deeplabv3.backbone.parameters():
-    param.requires_grad = True  # Freeze the backbone
+for param in model.model.backbone.parameters():
+    param.requires_grad = True  # Unfreeze the backbone
+    
+for param in model.model.classifier.parameters():
+    param.requires_grad = True
 
 # Mapping class IDs to train IDs
 id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
@@ -181,7 +185,7 @@ def main(args):
     )
 
     # Define the model
-    model = deeplabv3.to(device)
+    model = model.model.to(device)
 
     # Define the loss function
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
@@ -189,8 +193,8 @@ def main(args):
     # Define the optimizer
     lr1 = args.lr
     lr2 = args.lr2
-
-     optimizer1 = AdamW([
+    
+    optimizer1 = AdamW([
     {"params": model.classifier.parameters(), "lr": lr1}  # Higher LR for classifier
     ])
 
