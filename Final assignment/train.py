@@ -145,8 +145,7 @@ def main(args):
         ToDtype(torch.float32, scale=True),
         Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), #Parameters required for deeplabV3
         PaintingByNumbersTransform(),
-        RandomHorizontalFlip(p=0.25),
-        RandomVerticalFlip(p=0.25),
+        RandomVerticalFlip(p=0.5),
     ])
 
     # Load the dataset and make a split for training and validation
@@ -190,21 +189,28 @@ def main(args):
     # Define the optimizer
     lr1 = args.lr
     lr2 = args.lr2
-    optimizer = AdamW([
-    {"params": model.backbone.parameters(), "lr": lr1},  # Lower LR for backbone
-    {"params": model.classifier.parameters(), "lr": lr2}  # Higher LR for classifier
+
+     optimizer1 = AdamW([
+    {"params": model.classifier.parameters(), "lr": lr1}  # Higher LR for classifier
     ])
-    #scheduler = lr_scheduler.MultiplicativeLR(optimizer,lambda epoch: args.decay)
-    scheduler = lr_scheduler.StepLR(optimizer, 5, gamma=args.decay, last_epoch=-1)
+
+    optimizer2 = AdamW([
+    {"params": model.backbone.parameters(), "lr": lr2}  # Lower LR for backbone
+    ])
+
+    scheduler = lr_scheduler.StepLR(optimizer1, 5, gamma=args.decay, last_epoch=-1)
 
     # Training loop
     best_valid_loss = float('inf')
     current_best_model_path = None
     for epoch in range(args.epochs):
     
-        last_lr = scheduler.get_last_lr()[0]  # Returns a list, take the first value
+        last_lr1 = scheduler.get_last_lr()[0]  # Returns a list, take the first value
+        last_lr2 = scheduler.get_last_lr()[1] # Returns second value
+
 
         print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr = {last_lr:.3E}")
+        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr_classifier = {last_lr:.3E}, lr_backbone = {last_lr2:.3E}")
 
         # Training
         model.train()
@@ -219,11 +225,13 @@ def main(args):
             outputs = model(images)['out']
             loss = criterion(outputs, labels)
             loss.backward()
-            optimizer.step()
+            optimizer1.step()
+            optimizer2.step()
 
             wandb.log({
                 "train_loss": loss.item(),
                 "learning_rate": optimizer.param_groups[0]['lr'],
+                "testrate": last_lr2,
                 "epoch": epoch + 1,
             }, step=epoch * len(train_dataloader) + i)
             
@@ -277,8 +285,7 @@ def main(args):
                 )
                 torch.save(model.state_dict(), current_best_model_path)
 
-        if (epoch+1) % 2 ==0:
-            scheduler.step()
+        scheduler.step()
                     
     print("Training complete!")
 

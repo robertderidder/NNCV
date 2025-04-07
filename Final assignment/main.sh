@@ -5,7 +5,7 @@ python3 train.py \
     --batch-size 64 \
     --epochs 100\
     --lr1 0.01 \
-    --lr2 0.001 \
+    --lr2 0.0001 \
     --decay 0.8 \
     --num-workers 10 \
     --seed 42 \
