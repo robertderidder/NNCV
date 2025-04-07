@@ -33,14 +33,7 @@ from torchvision.transforms.v2 import (
     RandomHorizontalFlip,
     RandomVerticalFlip,
 )
-
-deeplabv3 = models.segmentation.deeplabv3_resnet50() #Use resnet50 because it is smaller than resnet101
-deeplabv3.classifier[4] = nn.Conv2d(256, 19, kernel_size=(1, 1))
-nn.init.xavier_normal_(deeplabv3.classifier[4].weight) #Initialize weights
-deeplabv3.backbone.layer4[0].conv2.dilation = (2, 2) #change  to stride 16
-deeplabv3.backbone.layer4[0].conv2.padding = (2, 2)
-deeplabv3.backbone.layer4[0].downsample[0].stride = (1, 1)  # Prevents downsampling
-model = deeplabv3
+from model import Model
 
 for param in deeplabv3.backbone.parameters():
     param.requires_grad = True  # Freeze the backbone
