@@ -115,7 +115,7 @@ def main(args):
     class PaintingByNumbersTransform:
       def __init__(self, id_to_color=None):
           self.id_to_color = id_to_color  # Dictionary mapping class IDs to colors
-  
+          
       def random_recolor(self, label_img):
           """Assigns random colors to segmentation labels."""
           h, w = label_img.shape[1:]
@@ -123,10 +123,11 @@ def main(args):
                   
           unique_labels = label_img.unique()
           color_map = {label.item(): torch.randint(0, 256, (3,), dtype=torch.uint8) for label in unique_labels}
-          
+
           for label, color in color_map.items():
-              mask = label_img == label  # Shape: (h, w)
-              recolored[mask] = color  # Broadcasting works correctly
+              mask = (label_img[0] == label)  # label_img shape is [1, h, w]
+              for c in range(3):
+                  recolored[c][mask] = color[c]
              
           return recolored
   
