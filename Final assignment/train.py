@@ -110,8 +110,9 @@ def main(args):
           union = pred.sum(dim=(2, 3)) + target.sum(dim=(2, 3))
           dice = (2. * intersection + self.smooth) / (union + self.smooth)
           return 1 - dice.mean()
-
-   class PaintingByNumbersTransform:
+          
+          
+    class PaintingByNumbersTransform:
       def __init__(self, id_to_color=None):
           self.id_to_color = id_to_color  # Dictionary mapping class IDs to colors
   
@@ -125,8 +126,7 @@ def main(args):
           
           for label, color in color_map.items():
               mask = label_img == label  # Shape: (h, w)
-              print(mask.shape)
-              recolored[:, mask] = color  # Broadcasting works correctly
+              recolored[mask] = color  # Broadcasting works correctly
              
           return recolored
   
