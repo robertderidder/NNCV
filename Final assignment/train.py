@@ -191,7 +191,7 @@ def main(args):
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    lr1 = args.lr
+    lr1 = args.lr1
     lr2 = args.lr2
     
     optimizer1 = AdamW([
@@ -210,11 +210,11 @@ def main(args):
     for epoch in range(args.epochs):
     
         last_lr1 = scheduler.get_last_lr()[0]  # Returns a list, take the first value
-        last_lr2 = scheduler.get_last_lr()[1] # Returns second value
+        last_lr2 = lr2
 
 
-        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr = {last_lr:.3E}")
-        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr_classifier = {last_lr:.3E}, lr_backbone = {last_lr2:.3E}")
+        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr = {last_lr1:.3E}")
+        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr_classifier = {last_lr1:.3E}, lr_backbone = {last_lr2:.3E}")
 
         # Training
         model.train()
@@ -225,7 +225,8 @@ def main(args):
 
             labels = labels.long().squeeze(1)  # Remove channel dimension
 
-            optimizer.zero_grad()
+            optimizer1.zero_grad()
+            optimizer2.zero_grad()
             outputs = model(images)['out']
             loss = criterion(outputs, labels)
             loss.backward()
@@ -234,7 +235,7 @@ def main(args):
 
             wandb.log({
                 "train_loss": loss.item(),
-                "learning_rate": optimizer.param_groups[0]['lr'],
+                "learning_rate": optimizer1.param_groups[0]['lr'],
                 "testrate": last_lr2,
                 "epoch": epoch + 1,
             }, step=epoch * len(train_dataloader) + i)
