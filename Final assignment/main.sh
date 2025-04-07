@@ -3,7 +3,7 @@ wandb login
 python3 train.py \
     --data-dir ./data/cityscapes \
     --batch-size 64 \
-    --epochs 5\
+    --epochs 70\
     --lr1 0.01 \
     --lr2 0.0001 \
     --decay 0.8 \
