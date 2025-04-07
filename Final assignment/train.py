@@ -71,7 +71,8 @@ def get_args_parser():
     parser.add_argument("--data-dir", type=str, default="./data/cityscapes", help="Path to the training data")
     parser.add_argument("--batch-size", type=int, default=64, help="Training batch size")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
-    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
+    parser.add_argument("--lr1", type=float, default=0.01, help="Learning rate classifier")
+    parser.add_argument("--lr2", type=float, default=0.001, help="Learning rate backbone")
     parser.add_argument("--decay",type=float,default=0.7,help="decay")
     parser.add_argument("--num-workers", type=int, default=10, help="Number of workers for data loaders")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
@@ -100,7 +101,7 @@ def main(args):
     # Define the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    class DiceLoss:
+    class DiceLoss: #copied from medium.com #Note: this is not used, but cross_entropy is used
       def __init__(self, smooth=1):
           self.smooth = smooth
       
@@ -139,7 +140,6 @@ def main(args):
               # Blend image and color segmentation map
               alpha = torch.rand(1).item() * 0.29 + 0.7  # Random alpha between 0.7 and 0.99
               blended_img = alpha * img + (1 - alpha) * gt_color.float() / 255.0
-              print(blended_img.shape)
               return blended_img, target
           
           return img, target  # If not applying transformation, return original
@@ -195,8 +195,14 @@ def main(args):
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    optimizer = AdamW(model.classifier.parameters(), lr=args.lr)
-    scheduler = lr_scheduler.MultiplicativeLR(optimizer,lambda epoch: args.decay)
+    lr1 = args.lr
+    lr2 = args.lr2
+    optimizer = AdamW([
+    {"params": model.backbone.parameters(), "lr": lr1},  # Lower LR for backbone
+    {"params": model.classifier.parameters(), "lr": lr2}  # Higher LR for classifier
+    ])
+    #scheduler = lr_scheduler.MultiplicativeLR(optimizer,lambda epoch: args.decay)
+    scheduler = lr_scheduler.StepLR(optimizer, 5, gamma=args.decay, last_epoch=-1)
 
     # Training loop
     best_valid_loss = float('inf')
