@@ -34,12 +34,12 @@ from torchvision.transforms.v2 import (
     RandomVerticalFlip,
 )
 from model import Model
-model = Model()
+deeplab = Model()
 
-for param in model.model.backbone.parameters():
+for param in deeplab.model.backbone.parameters():
     param.requires_grad = True  # Unfreeze the backbone
     
-for param in model.model.classifier.parameters():
+for param in deeplab.model.classifier.parameters():
     param.requires_grad = True
 
 # Mapping class IDs to train IDs
@@ -185,7 +185,7 @@ def main(args):
     )
 
     # Define the model
-    model = model.model.to(device)
+    model = deeplab.model.to(device)
 
     # Define the loss function
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
