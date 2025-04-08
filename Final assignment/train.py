@@ -34,7 +34,7 @@ from torchvision.transforms.v2 import (
 )
 
 from model import Model
-
+from diceloss import multiclass_dice_loss as diceloss
 
 # Mapping class IDs to train IDs
 id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
@@ -188,6 +188,7 @@ def main(args):
 
     # Define the loss function
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
+    criterion = diceloss
 
     # Define the optimizer
     lr1 = args.lr1
@@ -227,6 +228,7 @@ def main(args):
             optimizer1.zero_grad()
             optimizer2.zero_grad()
             outputs = model.model(images)['out']
+            print(outputs.shape)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer1.step()
