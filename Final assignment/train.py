@@ -30,17 +30,11 @@ from torchvision.transforms.v2 import (
     Resize,
     ToImage,
     ToDtype,
-    RandomHorizontalFlip,
     RandomVerticalFlip,
 )
-from model import Model
-deeplab = Model()
 
-for param in deeplab.model.backbone.parameters():
-    param.requires_grad = True  # Unfreeze the backbone
-    
-for param in deeplab.model.classifier.parameters():
-    param.requires_grad = True
+from model import Model
+
 
 # Mapping class IDs to train IDs
 id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
@@ -97,6 +91,14 @@ def main(args):
 
     # Define the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    model = Model().to(device)
+    
+    for param in model.model.backbone.parameters():
+        param.requires_grad = True  # Unfreeze the backbone
+        
+    for param in model.model.classifier.parameters():
+        param.requires_grad = True
 
     class DiceLoss: #copied from medium.com #Note: this is not used, but cross_entropy is used
       def __init__(self, smooth=1):
@@ -184,9 +186,6 @@ def main(args):
         num_workers=args.num_workers
     )
 
-    # Define the model
-    model = deeplab.model.to(device)
-
     # Define the loss function
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
@@ -195,14 +194,14 @@ def main(args):
     lr2 = args.lr2
     
     optimizer1 = AdamW([
-    {"params": model.classifier.parameters(), "lr": lr1}  # Higher LR for classifier
+    {"params": model.model.classifier.parameters(), "lr": lr1}  # Higher LR for classifier
     ])
 
     optimizer2 = AdamW([
-    {"params": model.backbone.parameters(), "lr": lr2}  # Lower LR for backbone
+    {"params": model.model.backbone.parameters(), "lr": lr2}  # Lower LR for backbone
     ])
 
-    scheduler = lr_scheduler.StepLR(optimizer1, 5, gamma=args.decay, last_epoch=-1)
+    scheduler = lr_scheduler.StepLR(optimizer1, 10, gamma=args.decay, last_epoch=-1)
 
     # Training loop
     best_valid_loss = float('inf')
@@ -213,7 +212,7 @@ def main(args):
         last_lr2 = lr2
 
 
-        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr = {last_lr1:.3E}")
+        #print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr = {last_lr1:.3E}")
         print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr_classifier = {last_lr1:.3E}, lr_backbone = {last_lr2:.3E}")
 
         # Training
@@ -227,7 +226,7 @@ def main(args):
 
             optimizer1.zero_grad()
             optimizer2.zero_grad()
-            outputs = model(images)['out']
+            outputs = model.model(images)['out']
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer1.step()
@@ -251,7 +250,7 @@ def main(args):
 
                 labels = labels.long().squeeze(1)  # Remove channel dimension
 
-                outputs = model(images)['out']
+                outputs = model.model(images)['out']
                 loss = criterion(outputs, labels)
                 losses.append(loss.item())
             
