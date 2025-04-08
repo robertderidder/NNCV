@@ -99,18 +99,6 @@ def main(args):
         
     for param in model.model.classifier.parameters():
         param.requires_grad = True
-
-    class DiceLoss: #copied from medium.com #Note: this is not used, but cross_entropy is used
-      def __init__(self, smooth=1):
-          self.smooth = smooth
-      
-      def __call__(self, pred, target):
-          pred = torch.sigmoid(pred)
-          intersection = (pred * target).sum(dim=(2, 3))
-          union = pred.sum(dim=(2, 3)) + target.sum(dim=(2, 3))
-          dice = (2. * intersection + self.smooth) / (union + self.smooth)
-          return 1 - dice.mean()
-          
           
     class PaintingByNumbersTransform:
       def __init__(self, id_to_color=None):
