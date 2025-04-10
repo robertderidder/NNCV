@@ -176,4 +176,5 @@ cython_debug/
 # Ignore the 'data' folder inside 'Weekly notebooks'
 **/Weekly notebooks/
 **/Final assignment/codalab/
+**/Final assignment/batch_dump.pt
 
