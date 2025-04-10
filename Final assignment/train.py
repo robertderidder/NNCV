@@ -176,7 +176,7 @@ def main(args):
 
     # Define the loss function
     #criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
-    criterion = MultiClassDice()
+    criterion = MultiDiceLoss()
 
     # Define the optimizer
     lr1 = args.lr1
