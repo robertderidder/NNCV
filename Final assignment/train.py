@@ -36,6 +36,8 @@ from torchvision.transforms.v2 import (
 from model import Model
 from diceloss import MultiDiceLoss
 
+
+
 # Mapping class IDs to train IDs
 id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
 def convert_to_train_id(label_img: torch.Tensor) -> torch.Tensor:
@@ -92,7 +94,9 @@ def main(args):
     # Define the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    model = Model().to(device)
+    model = Model()
+    model.load_state_dict(torch.load("checkpoints/deeplab/best_model-epoch=0023-val_loss=0.29269312880933285.pth"))
+    model=model.to(device)
     
     for param in model.model.backbone.parameters():
         param.requires_grad = True  # Unfreeze the backbone
@@ -139,7 +143,7 @@ def main(args):
         ToDtype(torch.float32, scale=True),
         Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), #Parameters required for deeplabV3
         PaintingByNumbersTransform(),
-        RandomVerticalFlip(p=0.5),
+        #RandomVerticalFlip(p=0.5),
     ])
 
     # Load the dataset and make a split for training and validation
@@ -175,8 +179,8 @@ def main(args):
     )
 
     # Define the loss function
-    #criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
-    criterion = MultiDiceLoss()
+    criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
+    criterion2 = MultiDiceLoss()
 
     # Define the optimizer
     lr1 = args.lr1
@@ -216,13 +220,13 @@ def main(args):
             optimizer1.zero_grad()
             optimizer2.zero_grad()
             outputs = model.model(images)['out']
-            loss = criterion(outputs, labels)
+            loss = criterion2(outputs, labels)
             loss.backward()
             optimizer1.step()
             optimizer2.step()
 
             wandb.log({
-                "train_loss": loss.item(),
+                "train_loss_dice": loss.item(),
                 "learning_rate": optimizer1.param_groups[0]['lr'],
                 "testrate": last_lr2,
                 "epoch": epoch + 1,
@@ -231,7 +235,8 @@ def main(args):
         # Validation
         model.eval()
         with torch.no_grad():
-            losses = []
+            losses_ce = []
+            losses_dice = []
             for i, (images, labels) in enumerate(valid_dataloader):
 
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
@@ -240,8 +245,10 @@ def main(args):
                 labels = labels.long().squeeze(1)  # Remove channel dimension
 
                 outputs = model.model(images)['out']
-                loss = criterion(outputs, labels)
-                losses.append(loss.item())
+                loss_ce = criterion(outputs, labels)
+                loss_dice = criterion2(outputs,labels)
+                losses_ce.append(loss_ce.item())
+                losses_dice.append(loss_dice.item())
             
                 if i == 0:
                     predictions = outputs.softmax(1).argmax(1)
@@ -263,18 +270,20 @@ def main(args):
                         "labels": [wandb.Image(labels_img)],
                     }, step=(epoch + 1) * len(train_dataloader) - 1)
             
-            valid_loss = sum(losses) / len(losses)
+            valid_loss_ce = sum(losses_ce) / len(losses_ce)
+            valid_loss_dice = sum(losses_dice)/len(losses_dice)
             wandb.log({
-                "valid_loss": valid_loss
+                "valid_loss_ce": valid_loss_ce,
+                "valid_loss_dice": valid_loss_dice,
             }, step=(epoch + 1) * len(train_dataloader) - 1)
 
-            if valid_loss < best_valid_loss:
-                best_valid_loss = valid_loss
+            if valid_loss_ce < best_valid_loss:
+                best_valid_loss = valid_loss_ce
                 if current_best_model_path:
                     os.remove(current_best_model_path)
                 current_best_model_path = os.path.join(
                     output_dir, 
-                    f"best_model-epoch={epoch:04}-val_loss={valid_loss:04}.pth"
+                    f"best_model-epoch={epoch:04}-val_loss={valid_loss_ce:04}.pth"
                 )
                 torch.save(model.state_dict(), current_best_model_path)
 
@@ -287,7 +296,7 @@ def main(args):
         model.state_dict(),
         os.path.join(
             output_dir,
-            f"final_model-epoch={epoch:04}-val_loss={valid_loss:04}.pth"
+            f"final_model-epoch={epoch:04}-val_loss={valid_loss_ce:04}.pth"
         )
     )
     wandb.finish()
