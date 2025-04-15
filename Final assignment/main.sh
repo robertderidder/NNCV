@@ -1,12 +1,12 @@
 wandb login
 
-python3 train.py \
+python3 overtrain.py \
     --data-dir ./data/cityscapes \
-    --batch-size 64 \
-    --epochs 100\
-    --lr1 0.01 \
-    --lr2 0.0001 \
+    --batch-size 16 \
+    --epochs 200\
+    --lr1 0.001 \
+    --lr2 0.001 \
     --decay 0.5 \
     --num-workers 10 \
     --seed 42 \
-    --experiment-id "deeplab" \
+    --experiment-id "dice_overfit" \
