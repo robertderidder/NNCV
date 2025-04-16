@@ -1,7 +1,10 @@
 # Final assignment: Cityscapes challenge
-## Background
+Welcome to the Final assignment. To improve robustness, the following strategies were implemented:
+1. Using the model "DeeplabV3 with a ResNet50 backbone
+2. Using generalised DICE loss
+3. Using painting by numbers to increase shape-bias and rely less on texture
 
-## How to run
+## How to run this code
 Steps to run the code:
 1. Clone this repository
 2. Run Weekly notebook 00_installation.ipynb to install required packages
@@ -12,7 +15,10 @@ sbatch download_docker_and_data.sh
 ```
 4. Set up a Weights&Biases environment and get an API key
 5. Copy the API key in the .env file and add a directory
-6. Modify script as needed
-7. Submit job to cluster:  "Jobscript_slurm.sh"
+6. Import data by running "download_docker_and_data.sh"
+7. Modify script as needed
+8. Submit job to cluster by running "Jobscript_slurm.sh"
 
 ## Codalab
+Codalab username: Robertderidder
+TU/e mail: c.d.ridder@student.tue.nl

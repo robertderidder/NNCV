@@ -4,3 +4,4 @@ Welcome to the repository for **5LSM0: Neural Networks for Computer Vision**, fr
 
 ## Overview
 This repository contains all the weekly notebooks and the final Assignment. For details and a README file about the Final Assignment, go the the folder. I would like to thanks the lecturers and instructuros for making this course possible.
+
