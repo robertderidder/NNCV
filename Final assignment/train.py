@@ -94,12 +94,10 @@ def main(args):
     # Define the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    model = Model()
-    model.load_state_dict(torch.load("checkpoints/deeplab/best_model-epoch=0023-val_loss=0.29269312880933285.pth"))
-    model=model.to(device)
+    model=model().to(device)
     
     for param in model.model.backbone.parameters():
-        param.requires_grad = True  # Unfreeze the backbone
+        param.requires_grad = False  # Unfreeze the backbone
         
     for param in model.model.classifier.parameters():
         param.requires_grad = True
