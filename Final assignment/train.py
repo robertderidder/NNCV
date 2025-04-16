@@ -76,7 +76,7 @@ def get_args_parser():
 def main(args):
     # Initialize wandb for logging
     wandb.init(
-        project="5lsm0-robustness_challenge",  # Project name in wandb
+        project="5lsm0-robustness_serious",  # Project name in wandb
         name=args.experiment_id,  # Experiment name in wandb
         config=vars(args),  # Save hyperparameters
     )
@@ -94,10 +94,10 @@ def main(args):
     # Define the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    model=model().to(device)
+    model=Model().to(device)
     
     for param in model.model.backbone.parameters():
-        param.requires_grad = False  # Unfreeze the backbone
+        param.requires_grad = True  # Unfreeze the backbone
         
     for param in model.model.classifier.parameters():
         param.requires_grad = True
@@ -127,7 +127,7 @@ def main(args):
               gt_color = self.random_recolor(target)
   
               # Blend image and color segmentation map
-              alpha = torch.rand(1).item() * 0.29 + 0.7  # Random alpha between 0.7 and 0.99
+              alpha = torch.rand(1).item() * 0.49 + 0.5  # Random alpha between 0.5 and 0.99
               blended_img = alpha * img + (1 - alpha) * gt_color.float() / 255.0
               return blended_img, target
           
@@ -183,20 +183,25 @@ def main(args):
     lr1 = args.lr1
     lr2 = args.lr2
     
-    optimizer = AdamW(model.parameters(), lr=args.lr1)
-    scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=args.decay, last_epoch=-1)
-
+    optimizer = AdamW([
+    {'params': model.model.backbone.parameters(), 'lr': lr1},
+    {'params': model.model.classifier.parameters(), 'lr': lr2}
+    ], weight_decay=1e-4)
+    
+    #optimizer = AdamW(model.parameters(), lr=args.lr1)
+    #scheduler = lr_scheduler.PolynomialLR(optimizer, total_iters=50, power=1.0, last_epoch=-1)
+    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 25, T_mult=1, eta_min=1e-6, last_epoch=-1)
+    
     # Training loop
     best_valid_loss = float('inf')
     current_best_model_path = None
     for epoch in range(args.epochs):
     
         last_lr1 = scheduler.get_last_lr()[0]  # Returns a list, take the first value
-        last_lr2 = lr2
+        last_lr2 = scheduler.get_last_lr()[1]
 
-
-        #print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr = {last_lr1:.3E}")
-        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr_classifier = {last_lr1:.3E}, lr_backbone = {last_lr2:.3E}")
+        print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr1 = {last_lr1:.3E}, lr2 = {last_lr2:.3E}")
+        #print(f"Epoch {epoch+1:04}/{args.epochs:04}, lr1 = {last_lr1:.3E}")
 
         # Training
         model.train()
@@ -207,26 +212,23 @@ def main(args):
 
             labels = labels.long().squeeze(1)  # Remove channel dimension
 
-            optimizer1.zero_grad()
-            optimizer2.zero_grad()
+            optimizer.zero_grad()
             outputs = model.model(images)['out']
-            loss = criterion2(outputs, labels)
+            loss = criterion(outputs, labels)
             loss.backward()
-            optimizer1.step()
-            optimizer2.step()
+            optimizer.step()
 
             wandb.log({
                 "train_loss_dice": loss.item(),
-                "learning_rate": optimizer1.param_groups[0]['lr'],
-                "testrate": last_lr2,
+                "learning_rate_1": optimizer.param_groups[0]['lr'],
+                "learning_rate_2": optimizer.param_groups[1]['lr'],
                 "epoch": epoch + 1,
             }, step=epoch * len(train_dataloader) + i)
             
         # Validation
         model.eval()
         with torch.no_grad():
-            losses_ce = []
-            losses_dice = []
+            losses = []
             for i, (images, labels) in enumerate(valid_dataloader):
 
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
@@ -235,10 +237,8 @@ def main(args):
                 labels = labels.long().squeeze(1)  # Remove channel dimension
 
                 outputs = model.model(images)['out']
-                loss_ce = criterion(outputs, labels)
-                loss_dice = criterion2(outputs,labels)
-                losses_ce.append(loss_ce.item())
-                losses_dice.append(loss_dice.item())
+                loss = criterion(outputs, labels)
+                losses.append(loss.item())
             
                 if i == 0:
                     predictions = outputs.softmax(1).argmax(1)
@@ -260,20 +260,18 @@ def main(args):
                         "labels": [wandb.Image(labels_img)],
                     }, step=(epoch + 1) * len(train_dataloader) - 1)
             
-            valid_loss_ce = sum(losses_ce) / len(losses_ce)
-            valid_loss_dice = sum(losses_dice)/len(losses_dice)
+            valid_loss = sum(losses) / len(losses)
             wandb.log({
-                "valid_loss_ce": valid_loss_ce,
-                "valid_loss_dice": valid_loss_dice,
+                "valid_loss": valid_loss,
             }, step=(epoch + 1) * len(train_dataloader) - 1)
 
-            if valid_loss_ce < best_valid_loss:
-                best_valid_loss = valid_loss_ce
+            if valid_loss < best_valid_loss:
+                best_valid_loss = valid_loss
                 if current_best_model_path:
                     os.remove(current_best_model_path)
                 current_best_model_path = os.path.join(
                     output_dir, 
-                    f"best_model-epoch={epoch:04}-val_loss={valid_loss_ce:04}.pth"
+                    f"best_model-epoch={epoch:04}-val_loss={valid_loss:04}.pth"
                 )
                 torch.save(model.state_dict(), current_best_model_path)
 
@@ -286,7 +284,7 @@ def main(args):
         model.state_dict(),
         os.path.join(
             output_dir,
-            f"final_model-epoch={epoch:04}-val_loss={valid_loss_ce:04}.pth"
+            f"final_model-epoch={epoch:04}-val_loss={valid_loss:04}.pth"
         )
     )
     wandb.finish()
