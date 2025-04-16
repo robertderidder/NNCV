@@ -5,13 +5,11 @@ Welcome to the Final assignment. To improve robustness, the following strategies
 3. Using painting by numbers to increase shape-bias and rely less on texture
 
 The following parameters were tested:
-2. Train backbone or not?
-- Training the backbone improved the result significantly
-3. Which loss: Cross-entropy or Generalised Dice, or combination
-4. Which combination of starting learning rate + decay
-    a. Polynomial decay, or Cosine_annealing with warm restarts
-5. Output stride 16 vs 32. 
-6. Batch size 16 vs 32 vs 64
+1. Train backbone or not?               A: Training the backbone improved the result significantly
+2. Which loss: Cross-entropy or Generalised Dice, or combination. A: Dice-loss works best
+3. Which combination of starting learning rate + decay. A: Cosine annealing with learning rate 0.001 for the classifier and 0.0001 for the backbone.
+4. Output stride 16 vs 32. A: output stride 16
+5. Batch size 16 vs 32 vs 64: Batch size 64 works better. 
 
 ## How to run this code
 Steps to run the code:
