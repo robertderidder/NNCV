@@ -4,6 +4,14 @@ Welcome to the Final assignment. To improve robustness, the following strategies
 2. Using generalised DICE loss
 3. Using painting by numbers to increase shape-bias and rely less on texture
 
+The following parameters were tested:
+1. Which backbone performs best for this task: ResNet50, ResNet101
+2. Train backbone or not?
+3. Which loss: Cross-entropy or Generalised Dice, or combination
+4. Which combination of starting learning rate + decay
+5. Output stride 16 vs 32. 
+6. Batch size 16 vs 32 vs 64
+
 ## How to run this code
 Steps to run the code:
 1. Clone this repository

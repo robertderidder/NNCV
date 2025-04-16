@@ -1,11 +1,14 @@
 import torch
 import torch.nn as nn
-from torchvision import models
+from torchvision.models.segmentation import deeplabv3_resnet101, DeepLabV3_ResNet101_Weights
 
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
-        model = models.segmentation.deeplabv3_resnet50(weights=None)
+
+        # Load pretrained weights
+        weights = DeepLabV3_ResNet101_Weights.DEFAULT
+        model = deeplabv3_resnet101(weights=weights)
 
         # Modify classifier head
         model.classifier[4] = nn.Conv2d(256, 19, kernel_size=1)
