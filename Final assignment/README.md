@@ -1,14 +1,12 @@
 # Final assignment: Cityscapes challenge
 Welcome to the Final assignment. To improve robustness, the following strategies were implemented:
-1. Using the model "DeeplabV3 with a ResNet50 backbone
-2. Using generalised DICE loss
+1. Using the model "DeeplabV3 with a ResNet101 backbone
+2. Using generalised Dice loss to deal with class imbalance
 3. Using painting by numbers to increase shape-bias and rely less on texture
 
 The following parameters were tested:
-1. Which backbone performs best for this task: ResNet50, ResNet101
-    ResNet101 performed better
 2. Train backbone or not?
-    Training the backbone improved the result significantly
+- Training the backbone improved the result significantly
 3. Which loss: Cross-entropy or Generalised Dice, or combination
 4. Which combination of starting learning rate + decay
     a. Polynomial decay, or Cosine_annealing with warm restarts
