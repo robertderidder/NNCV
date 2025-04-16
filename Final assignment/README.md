@@ -6,9 +6,12 @@ Welcome to the Final assignment. To improve robustness, the following strategies
 
 The following parameters were tested:
 1. Which backbone performs best for this task: ResNet50, ResNet101
+    ResNet101 performed better
 2. Train backbone or not?
+    Training the backbone improved the result significantly
 3. Which loss: Cross-entropy or Generalised Dice, or combination
 4. Which combination of starting learning rate + decay
+    a. Polynomial decay, or Cosine_annealing with warm restarts
 5. Output stride 16 vs 32. 
 6. Batch size 16 vs 32 vs 64
 
