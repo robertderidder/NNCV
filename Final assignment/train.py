@@ -177,22 +177,14 @@ def main(args):
     )
 
     # Define the loss function
-    criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
-    criterion2 = MultiDiceLoss()
+    criterion = MultiDiceLoss()
 
     # Define the optimizer
     lr1 = args.lr1
     lr2 = args.lr2
     
-    optimizer1 = AdamW([
-    {"params": model.model.classifier.parameters(), "lr": lr1}  # Higher LR for classifier
-    ])
-
-    optimizer2 = AdamW([
-    {"params": model.model.backbone.parameters(), "lr": lr2}  # Lower LR for backbone
-    ])
-
-    scheduler = lr_scheduler.StepLR(optimizer1, 10, gamma=args.decay, last_epoch=-1)
+    optimizer = AdamW(model.parameters(), lr=args.lr1)
+    scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=args.decay, last_epoch=-1)
 
     # Training loop
     best_valid_loss = float('inf')
