@@ -137,7 +137,7 @@ def main(args):
     # Define the transforms to apply to the data
     transform1 = Compose([
         ToImage(),
-        Resize((256, 256)),
+        Resize((512,512)),
         ToDtype(torch.float32, scale=True),
         Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), #Parameters required for deeplabV3
         PaintingByNumbersTransform(),
@@ -178,6 +178,7 @@ def main(args):
 
     # Define the loss function
     criterion = MultiDiceLoss()
+    criterion2 = nn.CrossEntropyLoss(ignore_index=255)
 
     # Define the optimizer
     lr1 = args.lr1
@@ -190,7 +191,7 @@ def main(args):
     
     #optimizer = AdamW(model.parameters(), lr=args.lr1)
     #scheduler = lr_scheduler.PolynomialLR(optimizer, total_iters=50, power=1.0, last_epoch=-1)
-    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 25, T_mult=1, eta_min=1e-6, last_epoch=-1)
+    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, 50, T_mult=2, eta_min=1e-6, last_epoch=-1)
     
     # Training loop
     best_valid_loss = float('inf')
@@ -214,7 +215,7 @@ def main(args):
 
             optimizer.zero_grad()
             outputs = model.model(images)['out']
-            loss = criterion(outputs, labels)
+            loss = 0.7*criterion(outputs, labels)+0.3*criterion2(outputs,labels)
             loss.backward()
             optimizer.step()
 
